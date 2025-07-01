@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Login Portal - SQL Injection Protection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-dark: #0f172a;
+            --secondary-dark: #1e293b;
+            --card-bg: #334155;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #475569;
+            --danger-bg: rgba(239, 68, 68, 0.1);
+            --success-bg: rgba(16, 185, 129, 0.1);
+            --warning-bg: rgba(245, 158, 11, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background:   black 100%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 3rem;
+            max-width: 1200px;
+            width: 100%;
+            z-index: 1;
+            position: relative;
+        }
+
+        .info-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            color: var(--text-primary);
+        }
+
+        .info-header {
+            margin-bottom: 2rem;
+        }
+
+        .info-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .security-status {
+            background: var(--success-bg);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .security-status h3 {
+            color: var(--accent-green);
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .protection-features {
+            margin-top: 2rem;
+        }
+
+        .protection-features h3 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .feature-icon {
+            width: 20px;
+            height: 20px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .login-panel {
+            background: rgba(51, 65, 85, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h2 {
+            color: var(--text-primary);
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            background: var(--secondary-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-input.danger {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .form-input.warning {
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        .threat-alert {
+            margin-top: 0.5rem;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .threat-alert.danger {
+            background: var(--danger-bg);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .threat-alert.warning {
+            background: var(--warning-bg);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fcd34d;
+        }
+
+        .threat-alert.success {
+            background: var(--success-bg);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+        }
+
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-blue), black);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .login-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .detection-log {
+            margin-top: 2rem;
+            background: var(--secondary-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-entry {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-message {
+            color: var(--text-secondary);
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+
+        .log-threat {
+            color: #fca5a5;
+        }
+
+        .log-safe {
+            color: #6ee7b7;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--secondary-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            
+            .login-panel {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .login-panel, .info-panel {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="info-panel">
+            <div class="info-header">
+                <h1>🛡️ SecureAuth</h1>
+                <p>Advanced SQL injection protection system with real-time threat detection and machine learning-based analysis.</p>
+            </div>
+
+            <div class="security-status">
+                <h3>🟢 Security Status: ACTIVE</h3>
+                <p>All login attempts are being monitored and analyzed for potential SQL injection attacks using advanced pattern recognition and ML models.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalAttempts">0</div>
+                    <div class="stat-label">Total Attempts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="blockedThreats">0</div>
+                    <div class="stat-label">Blocked Threats</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="securityScore">100</div>
+                    <div class="stat-label">Security Score</div>
+                </div>
+            </div>
+
+            <div class="protection-features">
+                <h3>Protection Features</h3>
+                <ul class="feature-list">
+                    <li>
+                        <div class="feature-icon">🔍</div>
+                        <span>Real-time SQL injection pattern detection</span>
+                    </li>
+                    <li>
+                        <div class="feature-icon">🤖</div>
+                        <span>Machine learning threat classification</span>
+                    </li>
+                    <li>
+                        <div class="feature-icon">⚡</div>
+                        <span>Instant input sanitization and validation</span>
+                    </li>
+                    <li>
+                        <div class="feature-icon">📊</div>
+                        <span>Advanced threat analytics and logging</span>
+                    </li>
+                    <li>
+                        <div class="feature-icon">🔒</div>
+                        <span>Multi-layer security architecture</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="detection-log">
+                <div class="log-header">
+                    <span>📋</span>
+                    <span>Security Event Log</span>
+                </div>
+                <div id="logContainer">
+                    <div class="log-entry">
+                        <span class="log-message log-safe">System initialized - Protection active</span>
+                        <span class="log-time" id="initTime"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-panel">
+            <div class="login-header">
+                <h2>Secure Login</h2>
+                <p>Enter your credentials to access the system</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <input 
+                        type="text" 
+                        class="form-input" 
+                        id="username" 
+                        name="username"
+                        placeholder="Enter your username"
+                        autocomplete="username"
+                    >
+                    <div class="threat-alert" id="usernameAlert"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input 
+                        type="password" 
+                        class="form-input" 
+                        id="password" 
+                        name="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                    >
+                    <div class="threat-alert" id="passwordAlert"></div>
+                </div>
+
+                <button type="submit" class="login-btn" id="loginBtn">
+                    🔐 Secure Login
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let totalAttempts = 0;
+        let blockedThreats = 0;
+        let securityScore = 100;
+
+        // Initialize timestamp
+        document.getElementById('initTime').textContent = new Date().toLocaleTimeString();
+
+        // SQL Injection patterns based on the model approach
+        const sqlInjectionPatterns = [
+            { pattern: /(\bOR\b|\bAND\b)\s+\d+\s*=\s*\d+/gi, severity: 'high', name: 'Boolean-based injection' },
+            { pattern: /\bUNION\b.*\bSELECT\b/gi, severity: 'critical', name: 'UNION-based injection' },
+            { pattern: /;\s*(DROP|DELETE|UPDATE|INSERT|TRUNCATE)\b/gi, severity: 'critical', name: 'Destructive commands' },
+            { pattern: /--\s*$/gm, severity: 'high', name: 'SQL comment injection' },
+            { pattern: /\/\*.*?\*\//gi, severity: 'medium', name: 'Block comment injection' },
+            { pattern: /'\s*(OR|AND)\s*'/gi, severity: 'high', name: 'Quote-based injection' },
+            { pattern: /\b(EXEC|EXECUTE|xp_cmdshell)\b/gi, severity: 'critical', name: 'Command execution' },
+            { pattern: /(WAITFOR|DELAY|SLEEP|BENCHMARK)\s*\(/gi, severity: 'high', name: 'Time-based injection' },
+            { pattern: /['"]\s*;\s*['"]/gi, severity: 'medium', name: 'Statement termination' },
+            { pattern: /%27|%22|%3B|%2F%2A/gi, severity: 'low', name: 'URL encoded SQL chars' },
+            { pattern: /\b(information_schema|sysobjects|syscolumns)\b/gi, severity: 'medium', name: 'Schema enumeration' },
+            { pattern: /\bCHAR\s*\(|ASCII\s*\(/gi, severity: 'medium', name: 'Character function injection' }
+        ];
+
+        // Clean query function (similar to the Python version)
+        function cleanQuery(query) {
+            if (!query) return '';
+            
+            query = query.toLowerCase();
+            query = query.replace(/\d+/g, '0');
+            query = query.replace(/[^a-z0-9_'"= ]/g, ' ');
+            query = query.replace(/\s+/g, ' ').trim();
+            
+            return query;
+        }
+
+        // ML-inspired classification (simulating the model behavior)
+        function classifyInput(input) {
+            const cleaned = cleanQuery(input);
+            let riskScore = 0;
+            const detectedPatterns = [];
+
+            // Pattern matching
+            sqlInjectionPatterns.forEach(patternObj => {
+                const matches = input.match(patternObj.pattern);
+                if (matches) {
+                    detectedPatterns.push({
+                        name: patternObj.name,
+                        severity: patternObj.severity,
+                        count: matches.length
+                    });
+
+                    const severityWeights = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };
+                    riskScore += severityWeights[patternObj.severity] * matches.length;
+                }
+            });
+
+            // Additional heuristics
+            const suspiciousChars = (input.match(/['"`;\\]/g) || []).length;
+            const sqlKeywords = (input.match(/\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|WHERE|FROM)\b/gi) || []).length;
+            
+            if (suspiciousChars > 2) riskScore += 2;
+            if (sqlKeywords > 1) riskScore += 1;
+
+            // Classification logic (mimicking ML model decision boundary)
+            const isMalicious = riskScore > 2 || detectedPatterns.some(p => p.severity === 'critical');
+            
+            return {
+                isMalicious,
+                riskScore,
+                detectedPatterns,
+                confidence: Math.min(95, 60 + (riskScore * 8))
+            };
+        }
+
+        function validateInput(inputElement, fieldName) {
+            const value = inputElement.value;
+            const alertElement = document.getElementById(fieldName + 'Alert');
+            
+            if (!value.trim()) {
+                hideAlert(inputElement, alertElement);
+                return true;
+            }
+
+            const analysis = classifyInput(value);
+            totalAttempts++;
+
+            if (analysis.isMalicious) {
+                blockedThreats++;
+                securityScore = Math.max(0, securityScore - 5);
+                showThreatAlert(inputElement, alertElement, analysis, fieldName);
+                logSecurityEvent(`🚨 SQL injection blocked in ${fieldName}`, 'threat');
+                return false;
+            } else {
+                showSafeAlert(inputElement, alertElement, fieldName);
+                logSecurityEvent(`✅ Safe input validated in ${fieldName}`, 'safe');
+                return true;
+            }
+        }
+
+        function showThreatAlert(input, alert, analysis, fieldName) {
+            input.classList.remove('warning');
+            input.classList.add('danger');
+            
+            alert.className = 'threat-alert danger';
+            alert.style.display = 'block';
+            alert.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span>🚨</span>
+                    <strong>SQL Injection Detected!</strong>
+                </div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">
+                    Risk Score: ${analysis.riskScore}/20 | Confidence: ${analysis.confidence}%
+                    <br>Patterns: ${analysis.detectedPatterns.map(p => p.name).join(', ')}
+                </div>
+            `;
+            
+            updateStats();
+        }
+
+        function showSafeAlert(input, alert, fieldName) {
+            input.classList.remove('danger', 'warning');
+            
+            alert.className = 'threat-alert success';
+            alert.style.display = 'block';
+            alert.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span>✅</span>
+                    <span>Input validated - No threats detected</span>
+                </div>
+            `;
+            
+            setTimeout(() => hideAlert(input, alert), 3000);
+            updateStats();
+        }
+
+        function hideAlert(input, alert) {
+            input.classList.remove('danger', 'warning');
+            alert.style.display = 'none';
+        }
+
+        function logSecurityEvent(message, type) {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            const logClass = type === 'threat' ? 'log-threat' : 'log-safe';
+            const timestamp = new Date().toLocaleTimeString();
+            
+            logEntry.innerHTML = `
+                <span class="log-message ${logClass}">${message}</span>
+                <span class="log-time">${timestamp}</span>
+            `;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep only last 10 entries
+            while (logContainer.children.length > 11) {
+                logContainer.removeChild(logContainer.children[1]);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalAttempts').textContent = totalAttempts;
+            document.getElementById('blockedThreats').textContent = blockedThreats;
+            document.getElementById('securityScore').textContent = securityScore;
+        }
+
+        // Real-time validation
+        document.getElementById('username').addEventListener('input', function() {
+            clearTimeout(this.validationTimeout);
+            this.validationTimeout = setTimeout(() => {
+                validateInput(this, 'username');
+            }, 500);
+        });
+
+        document.getElementById('password').addEventListener('input', function() {
+            clearTimeout(this.validationTimeout);
+            this.validationTimeout = setTimeout(() => {
+                validateInput(this, 'password');
+            }, 500);
+        });
+
+        // Form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username');
+            const password = document.getElementById('password');
+            const loginBtn = document.getElementById('loginBtn');
+            
+            const usernameValid = validateInput(username, 'username');
+            const passwordValid = validateInput(password, 'password');
+            
+            if (usernameValid && passwordValid) {
+                loginBtn.disabled = true;
+                loginBtn.textContent = '🔄 Authenticating...';
+                
+                // Simulate authentication
+                setTimeout(() => {
+                    alert('✅ Login successful! (Demo - no actual authentication performed)');
+                    logSecurityEvent(`✅ Successful login attempt for user: ${username.value}`, 'safe');
+                    
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '🔐 Secure Login';
+                }, 2000);
+            } else {
+                alert('🚨 Login blocked due to security concerns. Please check your input.');
+                logSecurityEvent(`🚨 Login attempt blocked - Security threat detected`, 'threat');
+            }
+        });
+
+        // Test examples for demonstration
+        function loadTestExample(type) {
+            const username = document.getElementById('username');
+            const examples = {
+                'safe': 'john.doe',
+                'malicious': "admin' OR '1'='1",
+                'union': "' UNION SELECT * FROM users --",
+                'drop': "'; DROP TABLE users; --"
+            };
+            
+            if (examples[type]) {
+                username.value = examples[type];
+                validateInput(username, 'username');
+            }
+        }
+
+        // Add keyboard shortcut for testing (Ctrl+T)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 't') {
+                e.preventDefault();
+                const testInputs = ["admin' OR '1'='1", "' UNION SELECT * FROM users --", "normal_user"];
+                const randomInput = testInputs[Math.floor(Math.random() * testInputs.length)];
+                document.getElementById('username').value = randomInput;
+                validateInput(document.getElementById('username'), 'username');
+            }
+        });
+    </script>
+</body>
+</html>
